@@ -8,78 +8,61 @@ class Result {
         for (int i = 0; i < requests.size(); i++) {
             String domain = requests.get(i);
             uniqueDomains.putIfAbsent(domain, new DomainData());
-            uniqueDomains.get(domain).positions.add(i);
+            uniqueDomains.get(domain).positions().add(i);
         }
 
-        for (String domain : uniqueDomains.keySet()) {
-            DomainData data = uniqueDomains.get(domain);
-            List<Integer> pos = data.positions;
+        for (Map.Entry<String, DomainData> entry : uniqueDomains.entrySet()) {
+            List<Integer> pos = entry.getValue().positions();
+            List<Boolean> flags = entry.getValue().flags();
 
             for (int i = 0; i < pos.size(); i++) {
-                int t1 = pos.get(i);
-
+                int currentTime = pos.get(i);
 
                 if (i < 2) {
-                    data.flags.add(true);
+                    flags.add(true);
                     continue;
                 }
 
-                int t2 = pos.get(i - 1);
-                int t3 = pos.get(i - 2);
+                int previousTime1 = pos.get(i - 1);
+                int previousTime2 = pos.get(i - 2);
 
-                if (!(t1 - t2 > 5 && t1 - t3 > 5)) {
-                    data.flags.add(false);
+                if (!(currentTime - previousTime1 > 5 && currentTime - previousTime2 > 5)) {
+                    flags.add(false);
                     continue;
                 }
-
 
                 if (i < 5) {
-                    data.flags.add(true);
+                    flags.add(true);
                     continue;
                 }
 
                 boolean passed30 = true;
-
                 for (int j = 1; j <= 5; j++) {
-                    int prevTime = pos.get(i - j);
-                    if (data.flags.get(i - j) && t1 - prevTime <= 29) {
+                    int pastTime = pos.get(i - j);
+                    if (flags.get(i - j) && currentTime - pastTime <= 29) {
                         passed30 = false;
                         break;
                     }
                 }
 
-                if (!passed30) {
-                    data.flags.add(false);
-                } else {
-                    data.flags.add(true);
-                }
+                flags.add(passed30);
             }
         }
 
-
         List<String> result = new ArrayList<>();
-
         for (String domain : requests) {
             DomainData data = uniqueDomains.get(domain);
-            boolean accepted = data.flags.remove(0);
-
-            if (accepted) {
-                result.add("200 OK");
-            } else {
-                result.add("429 Too Many Requests");
-            }
+            boolean accepted = data.flags().remove(0);
+            result.add(accepted ? "200 OK" : "429 Too Many Requests");
         }
 
         return result;
     }
 }
 
-class DomainData {
-    List<Integer> positions;
-    List<Boolean> flags;
-
+//  Using a record with mutable fields
+record DomainData(List<Integer> positions, List<Boolean> flags) {
     DomainData() {
-        positions = new ArrayList<>();
-        flags = new ArrayList<>();
+        this(new ArrayList<>(), new ArrayList<>());
     }
 }
